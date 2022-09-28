@@ -1,0 +1,41 @@
+.cbpp-map {
+    text, tspan {
+        font-family:"Arial Narrow";
+    }
+    g.state:hover {
+        text, path, rect {
+            transition: fill 0.2s;
+            cursor:pointer;
+        }
+        /*path, rect {
+            fill:#eb8f34;
+        }
+        text {
+            fill:#000;
+        }*/
+    }
+
+    
+
+}
+
+.map-outer-wrap {
+    position:relative;
+    .popup-outer-wrap {
+        position:absolute;
+        width:0px;
+        overflow:visible;
+        height:0px;
+
+    }
+    .popup-inner {
+        width:300px;
+        max-width:80vw;
+        position:relative;
+        border-radius:5px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border:2px solid #0c61a4;
+        padding:10px;
+    }
+    
+}

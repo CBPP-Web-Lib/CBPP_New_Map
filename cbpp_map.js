@@ -3,6 +3,7 @@ var text_config = require("./text_config.json");
 var {feature} = topojson;
 var d3, $, url_root;
 var application = {};
+require("./cbpp_map.scss");
 
 module.exports = function(_$, _d3, _url_root) {
   d3 = _d3; $ = _$, url_root = _url_root;
@@ -46,16 +47,18 @@ function generatePaths(pathgen, pr_pathgen, features) {
 }
 
 
-var stateenter = function(e, d) {
+var stateenter = function(e, d, global_el, options) {
   if (popup_exited_recently) {
     return;
   }
   clearTimeout(mousetimer);
+  var code = d[0];
   mousetimer = setTimeout(function() {
-    var {sel, configurator} = application;
-    var pwrap = $(sel).find(".popup-outer-wrap");
-    var mwrap = $(sel).find(".map-outer-wrap");
+    console.log("stateenter");
+    var pwrap = global_el.find(".popup-outer-wrap");
+    var mwrap = global_el.find(".map-outer-wrap");
     var offset = mwrap.offset();
+    console.log(offset);
     var height = mwrap.height();
     var width = mwrap.width();
     //var {pageX, pageY} = e;
@@ -68,42 +71,21 @@ var stateenter = function(e, d) {
       (py*100) + "%"
     ];
     pwrap.css("left", pos[0]).css("top", pos[1]);
-    var year_1 = d[1][2];
-    var year_2 = d[1][3];
-    var main_config = d[1][5];
-    var {dataset} = main_config;
-    var addtl_config = application.more_config[dataset];
-    
-    var popup_table = get_popup_table(year_1, year_2, main_config, addtl_config);
-    var title = application.stateNames[d[0]] + "<br><a class='profile-link' name='" + d[0] + "'>View State Profile</a>";
-    var code = d[0];
-    var races_list = configurator.getChoice("race").options;
-    var race_short = {};
-    races_list.forEach((race)=> {
-      race_short[race.value] = race.name;
-    });
-    if (d[1][5].race) {
-      title += "<div class='race-subtitle-popup'>" + race_short[d[1][5].race] + "</div>";
-    }
-    var popup_html = popup_template({title, code, popup_table});
+    var popup_html = popup_template(code, options);
+    console.log(popup_html);
     pwrap.empty().html(popup_html);
-    pwrap.find("span.y2").text(compare_years[1]);
-    var popup_width = pwrap.find(".popup-inner").width();
-    var height = pwrap.find(".popup-inner").height();
-    pwrap.find(".popup-inner").css("right", px * popup_width + "px");
-    if (py > 0.5) {
-      pwrap.find(".popup-inner").css("top", (-height - 40) + "px");
-    } else {
-      pwrap.find(".popup-inner").css("top", "30px");
-    }
   }, 100);
 }
 
-var stateexit = function (e, d) {
+var popup_template = function(code, options) {
+  return "<div class='popup-inner'>" + code + "</div>";
+}
+
+var stateexit = function (global_el) {
+  console.log("stateexit");
   clearTimeout(mousetimer);
   mousetimer = setTimeout(function() {
-    var {sel} = application;
-    $(sel).find(".popup-outer-wrap").empty();
+    global_el.find(".popup-outer-wrap").empty();
   }, 100);
 }
 
@@ -112,30 +94,31 @@ function cbpp_map(sel, _options) {
   var stateCodes = getStateCodes();
   var options = {}
   $.extend(true, options, _options);
-  application.map_svg = d3.select(sel).append("svg")
+  var outer_wrap = d3.select(sel).append("div")
+    .attr("class","map-outer-wrap");
+  $(outer_wrap.node()).append($(document.createElement("div")).addClass("popup-outer-wrap"));
+  application.map_svg = outer_wrap.append("svg")
     .attr("version", "1.1")
     .attr("xmlns", "http://www.w3.org/2000/svg")
     .attr('xmlns:xlink', "http://www.w3.org/1999/xlink");
   getPaths().then((paths)=> {
     add_state_paths(application.map_svg, paths, options);
-    event_listeners();
+    event_listeners(sel, options);
   })
   
 }
 
 var mousetracker = {}, mousetimer, popup_exited_recently = false;
 
-function event_listeners(options) {
-  var {sel} = application;
+function event_listeners(sel, options) {
   $(window).on("mousemove", function(e) {
     mousetracker.x = e.pageX;
     mousetracker.y = e.pageY;
     if ($(e.target).hasClass(".popup-outer-wrap") || $(e.target).parents(".popup-outer-wrap").length) {
       return;
     }
-    if ($(sel).find(".cbpp-map").find(e.target).length===0)
     if ($(sel).find(e.target).length===0) {
-      stateexit();
+      stateexit($(sel));
     }
   });
   $(sel).find(".popup-outer-wrap").on("mouseenter", function() {
@@ -163,7 +146,7 @@ function event_listeners(options) {
             popup_exited_recently = false;
           }, 200);
           popup_exited_recently = true;
-          stateexit();
+          stateexit($(sel));
 
         }
       }
@@ -201,20 +184,20 @@ function add_state_paths(svg, paths, options) {
     .enter()
     .append("g")
     .attr("class", "state")
-    .on("mouseenter", stateenter)
+    .on("mouseenter", function(e, d) {
+      stateenter.call(this, e, d, $(svg.node().parentNode.parentNode), options);
+    })
     .on("mouseleave", function(e, d) {
       if ($(e.relatedTarget).hasClass("popup-inner")) {
         return;
       }
-      stateexit.call(e, d)
+      stateexit($(svg.node().parentNode.parentNode))
     })
     .on("click", function(e, d) {
+      if (typeof(options.clickHandler)==="function") {
+        options.clickHandler(e, d);
+      }
       if (e.pointerType==="touch") {return;}
-      var state = d[0];
-      var {sel} = application;
-      $(sel).find("select[name='state-picker']").val(state);
-      state_profile(state);
-      $(sel).find(".tab[name='profiles']").trigger("click");
     })
     .each(function(d) {
       var state = d[0];
@@ -227,7 +210,6 @@ function add_state_paths(svg, paths, options) {
       var label = d3.select(this).append("text")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .attr("font-family","proxima-nova-condensed","sans-serif")
         .attr("font-size","18pt")
         .attr("opacity",0.8)
         .text(state)
