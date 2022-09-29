@@ -1,9 +1,13 @@
 var topojson = require("topojson");
 var text_config = require("./text_config.json");
+var get_brightness = require("getbrightness");
 var {feature} = topojson;
 var d3, $, url_root;
 var application = {};
 require("./cbpp_map.scss");
+
+const hex_rgb = require("hex-rgb");
+const rgb_hex = require("rgb-hex");
 
 module.exports = function(_$, _d3, _url_root) {
   d3 = _d3; $ = _$, url_root = _url_root;
@@ -16,8 +20,7 @@ module.exports = function(_$, _d3, _url_root) {
 }
 
 var {getStateName, getStateCode, getStateNames, getStateCodes} = require("./state_names.js");
-
-console.log(document.currentScript);
+const { default: getBrightness } = require("getbrightness");
 
 function getPaths() {
   return new Promise((resolve)=> {
@@ -52,7 +55,7 @@ var stateenter = function(e, d, global_el, options) {
     return;
   }
   clearTimeout(mousetimer);
-  var code = d[0];
+  var code = d.state;
   mousetimer = setTimeout(function() {
     console.log("stateenter");
     var pwrap = global_el.find(".popup-outer-wrap");
@@ -71,14 +74,14 @@ var stateenter = function(e, d, global_el, options) {
       (py*100) + "%"
     ];
     pwrap.css("left", pos[0]).css("top", pos[1]);
-    var popup_html = popup_template(code, options);
-    console.log(popup_html);
+    var popup_html = popup_template(code, options, d);
     pwrap.empty().html(popup_html);
   }, 100);
 }
 
-var popup_template = function(code, options) {
-  return "<div class='popup-inner'>" + code + "</div>";
+var popup_template = function(code, options, d) {
+  var html = options.popup_generator(code, d.value);
+  return "<div class='popup-inner'>" + html + "</div>";
 }
 
 var stateexit = function (global_el) {
@@ -90,22 +93,136 @@ var stateexit = function (global_el) {
 }
 
 function cbpp_map(sel, _options) {
+
+  var map = {};
+  var data;
+
+  map.setData = function(_data) {
+    data = {};
+    $.extend(true, data, _data);
+    this.map_svg.selectAll("g.state").each(function() {
+      var datum = d3.select(this).datum();
+      datum.value = _data[datum.state];
+      d3.select(this).datum(datum);
+    });
+  }
+
+  map.getData = function() {
+    var r = {};
+    $.extend(true, r, data);
+    return r;
+  }
+
   var stateNames = getStateNames();
   var stateCodes = getStateCodes();
-  var options = {}
-  $.extend(true, options, _options);
+
+  var options = {
+    type: "grad", /*grad or bins*/
+
+    /*default is gte lower, lt higher*/
+    bin_boundary: "gte-lt",
+    bins: [-1, 0, 1], /*these are the boundaries between bins. There should be one more than the number of colors*/
+
+    customValues: [
+      {
+        values: [-100, -98],
+        label: "-99 custom code example",
+        color: "#ed1c24"
+      }
+    ], /*can be used in conjuction with gradient for solid colors not in the range*/
+
+    grad_colors: ["#a0917d", "#ffffff", "#0c61a4"], /*should be equal to number of gradient stops*/
+
+    bin_colors: ["#a0917d", "#0c61a4"], /*shoudl be one less than the number of bin boundaries*/
+
+    not_in_range_color: "#aaaaaa",
+
+    hover_color: "#eb9123",
+
+    text_color: default_text_color, /*arguments: data value, fill color*/
+
+    popup_generator: function(state, d) {
+      console.log(d);
+      var html =  getStateName(state) + ": " + d;
+      console.log(html);
+      return html;
+    },
+
+    gradient_stops: [
+      {
+        value: -1,
+        position: 0, /*between 0 and 1, or "auto" for linear based on value*/
+      }, {
+        value: 0,
+        position: 0.5,
+      }, {
+        value: 1,
+        position: 1
+      }
+    ]
+  }
+
+  map.setOptions = function(_options) {
+    $.extend(true, options, _options);
+  }
+
+  map.clearOption = function(name_arr) {
+    var failure = false;
+    var op = options;
+    name_arr.forEach((key, i)=> {
+      if (i === name_arr.length - 1) {
+        delete(op[key]);
+      } else if (op[key]) {
+        op = op[key];
+      } else {
+        failure = true;
+      }
+    });
+    if (failure) {
+      throw new Error("Failed to clear options " + name_arr.join("."));
+    }
+  }
+
+  map.fillStates = function(duration) {
+    this.map_svg.selectAll("g.state").each(function(d) {
+      var fill = get_color(d.value, options);
+      d3.select(this).selectAll("path, rect").transition()
+        .duration(duration)
+        .attr("fill", fill);
+      var state = d.state;
+      if (!text_config.outside[state]) {
+        d3.select(this).selectAll("text")
+          .transition()
+          .duration(duration)
+          .attr("fill", options.text_color(d, fill));
+      }
+
+    });
+  }
+
+
+
+
   var outer_wrap = d3.select(sel).append("div")
     .attr("class","map-outer-wrap");
   $(outer_wrap.node()).append($(document.createElement("div")).addClass("popup-outer-wrap"));
-  application.map_svg = outer_wrap.append("svg")
+  map.map_svg = outer_wrap.append("svg")
     .attr("version", "1.1")
     .attr("xmlns", "http://www.w3.org/2000/svg")
     .attr('xmlns:xlink', "http://www.w3.org/1999/xlink");
   getPaths().then((paths)=> {
-    add_state_paths(application.map_svg, paths, options);
+    var start_data = _options.data;
+    delete(_options.data);
+    map.setOptions(_options);
+    add_state_paths(map.map_svg, paths, options);
+    map.setData(start_data);
     event_listeners(sel, options);
+    map.fillStates(0);
   })
   
+  
+  return map;
+
 }
 
 var mousetracker = {}, mousetimer, popup_exited_recently = false;
@@ -160,7 +277,7 @@ function add_state_paths(svg, paths, options) {
   var data = [];
   Object.keys(paths).forEach((state) => {
     var path = paths[state];
-    data.push([state, path]);
+    data.push({state, path});
   });
   /*Object.keys(application.text_config.noOutline).forEach((territory)=> {
     data.push([territory, null])
@@ -179,7 +296,7 @@ function add_state_paths(svg, paths, options) {
     .attr("pointer-events", "none");
   svg.selectAll("g.state")
     .data(data, function(d) {
-      return d[0];
+      return d.state;
     })
     .enter()
     .append("g")
@@ -200,9 +317,9 @@ function add_state_paths(svg, paths, options) {
       if (e.pointerType==="touch") {return;}
     })
     .each(function(d) {
-      var state = d[0];
+      var state = d.state;
       var path = d3.select(this).append("path")
-        .attr("d", d[1])
+        .attr("d", d.path)
         .attr("name", state)
         .attr("fill", "#fff")
         .attr("stroke", "#000")
@@ -280,4 +397,90 @@ function add_state_paths(svg, paths, options) {
   borders.raise();
   $(temp_svg).remove();
 
+}
+
+function get_color(d, options) {
+  if (options.type === "grad") {
+    return get_grad_color(d, options);
+  } else if (options.type==="bins") {
+    return get_bin_color(d, options);
+  } else {
+    throw new Error("invalid map type: must be 'grad' or 'bins'");
+  }
+}
+
+function get_grad_color(d, options) {
+  var gradient_stops = [];
+  $.extend(true, gradient_stops, options.gradient_stops);
+  gradient_stops.sort((a, b)=> {
+    return a.value - b.value;
+  });
+  var min, max;
+  min = gradient_stops[0].value;
+  max = gradient_stops[gradient_stops.length - 1].value;
+  var color, useCustom;
+  options.customValues.forEach((customValue)=> {
+    if (d >= customValue.values[0] && d < customValue.values[1]) {
+      color = customValue.color;
+      useCustom = true;
+    }
+  });
+  if (useCustom) {return color;}
+  if (d < min || d > max) {
+    color =  options.not_in_range_color;
+  } else {
+    gradient_stops.forEach((stop, i)=> {
+      if (i===gradient_stops.length - 1) {
+        return options.grad_colors[i];
+      } else {
+        var low_stop = stop;
+        var high_stop = gradient_stops[i+1];
+        if (d >= low_stop.value && d < high_stop.value) {
+          color = interpolate_hex((d-low_stop.value)/(high_stop.value - low_stop.value), options.grad_colors[i], options.grad_colors[i+1]);
+        }
+      }
+    });
+  }
+  return color;
+}
+
+function get_bin_color(d, options) {
+  var bins = [];
+  $.extend(true, bins, options.bins);
+  bins.sort((a, b)=> {
+    return a - b;
+  });
+  var color;
+  color = options.not_in_range_color;
+  bins.forEach((bin, i)=> {
+    if (i === bins[bin.length - 1]) {return;}
+    if (d >= bin && d < bins[i+1]) {
+      color = options.bin_colors[i];
+    }
+  });
+  return color;
+}
+
+function interpolate_hex(d, c1, c2) {
+  if (c1[0]==="#") {
+    c1 = hex_rgb(c1);
+  }
+  if (c2[0]==="#") {
+    c2 = hex_rgb(c2);
+  }
+  var r = {};
+  Object.keys(c1).forEach((channel)=> {
+    r[channel] = Math.round(d*(c2[channel] - c1[channel]) + c1[channel]);
+  });
+  var rhex = "#" + rgb_hex(r.red, r.green, r.blue);
+  return rhex;
+} 
+
+function default_text_color(d, fill) {
+  var brightness = getBrightness(fill);
+  if (brightness > 0.5) {
+    return "#000";
+  } else {
+    return "#fff";
+  }
 }
