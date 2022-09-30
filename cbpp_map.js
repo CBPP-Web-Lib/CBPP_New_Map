@@ -1,6 +1,6 @@
 var topojson = require("topojson");
 var text_config = require("./text_config.json");
-var get_brightness = require("getbrightness");
+var getBrightness = require("getbrightness").default;
 var {feature} = topojson;
 var d3, $, url_root;
 var application = {};
@@ -15,16 +15,13 @@ module.exports = function(_$, _d3, _url_root) {
   application.$ = $;
   application.url_root = _url_root;
   application.text_config = text_config;
-  console.log("hello");
   return cbpp_map;
 }
 
 var {getStateName, getStateCode, getStateNames, getStateCodes} = require("./state_names.js");
-const { default: getBrightness } = require("getbrightness");
 
 function getPaths() {
   return new Promise((resolve)=> {
-    console.log(application);
     $.get(application.url_root + "./geography/states_50m_topo.json", function(d) {
       application.states_50m = feature(d, d.objects.states);
       var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
@@ -51,32 +48,50 @@ function generatePaths(pathgen, pr_pathgen, features) {
 
 
 var stateenter = function(e, d, global_el, options) {
-  if (popup_exited_recently) {
-    return;
-  }
-  clearTimeout(mousetimer);
-  var code = d.state;
-  mousetimer = setTimeout(function() {
-    console.log("stateenter");
+  if (options.popup_movement==="sticky") {
+    if (popup_exited_recently) {
+      return;
+    }
+    clearTimeout(mousetimer);
+    var code = d.state;
+    mousetimer = setTimeout(function() {
+      var pwrap = global_el.find(".popup-outer-wrap");
+      var popup_html = popup_template(code, options, d);
+      pwrap.empty().html(popup_html);
+      position_popup(global_el);
+    }, 100);
+  } else {
+    var code = d.state;
     var pwrap = global_el.find(".popup-outer-wrap");
-    var mwrap = global_el.find(".map-outer-wrap");
-    var offset = mwrap.offset();
-    console.log(offset);
-    var height = mwrap.height();
-    var width = mwrap.width();
-    //var {pageX, pageY} = e;
-    var x = mousetracker.x - offset.left;
-    var y = mousetracker.y - offset.top;
-    var px = x/width;
-    var py = y/height;
-    var pos = [
-      (px*100) + "%",
-      (py*100) + "%"
-    ];
-    pwrap.css("left", pos[0]).css("top", pos[1]);
     var popup_html = popup_template(code, options, d);
     pwrap.empty().html(popup_html);
-  }, 100);
+  }
+}
+
+var position_popup = function(global_el) { 
+  var pwrap = global_el.find(".popup-outer-wrap");
+  var mwrap = global_el.find(".map-outer-wrap");
+  var offset = mwrap.offset();
+  var height = mwrap.height();
+  var width = mwrap.width();
+  //var {pageX, pageY} = e;
+  var x = mousetracker.x - offset.left;
+  var y = mousetracker.y - offset.top;
+  var px = x/width;
+  var py = y/height;
+  var pos = [
+    (px*100) + "%",
+    (py*100) + "%"
+  ];
+  pwrap.css("left", pos[0]).css("top", pos[1]);
+  var popup_width = pwrap.find(".popup-inner").width();
+  var height = pwrap.find(".popup-inner").height();
+  pwrap.find(".popup-inner").css("right", px * popup_width + "px");
+  if (py > 0.5) {
+    pwrap.find(".popup-inner").css("top", (-height - 40) + "px");
+  } else {
+    pwrap.find(".popup-inner").css("top", "30px");
+  }
 }
 
 var popup_template = function(code, options, d) {
@@ -84,12 +99,15 @@ var popup_template = function(code, options, d) {
   return "<div class='popup-inner'>" + html + "</div>";
 }
 
-var stateexit = function (global_el) {
-  console.log("stateexit");
-  clearTimeout(mousetimer);
-  mousetimer = setTimeout(function() {
+var stateexit = function (global_el, options) {
+  if (options.popup_movement==="sticky") {
+    clearTimeout(mousetimer);
+    mousetimer = setTimeout(function() {
+      global_el.find(".popup-outer-wrap").empty();
+    }, 100);
+  } else {
     global_el.find(".popup-outer-wrap").empty();
-  }, 100);
+  }
 }
 
 function cbpp_map(sel, _options) {
@@ -117,11 +135,19 @@ function cbpp_map(sel, _options) {
   var stateCodes = getStateCodes();
 
   var options = {
-    type: "grad", /*grad or bins*/
+    type: "grad", /*grad, bins, or bins_grad */
 
     /*default is gte lower, lt higher*/
     bin_boundary: "gte-lt",
     bins: [-1, 0, 1], /*these are the boundaries between bins. There should be one more than the number of colors*/
+
+    bin_grad_labels: function(value) { /*array or function that accepts value*/
+      return value;
+    },
+
+    bin_labels: function(low, high) { /*array or function that accepts lower value and higher value*/
+      return low + " &mdash; " + high;
+    },
 
     customValues: [
       {
@@ -137,27 +163,33 @@ function cbpp_map(sel, _options) {
 
     not_in_range_color: "#aaaaaa",
 
+    legend_position: "above", /*can be 'above', 'below', or CSS selector for external element*/
+
+    popup_movement: "sticky",
+
     hover_color: "#eb9123",
+
+    hover_text_color: "#333333",
 
     text_color: default_text_color, /*arguments: data value, fill color*/
 
     popup_generator: function(state, d) {
-      console.log(d);
       var html =  getStateName(state) + ": " + d;
-      console.log(html);
       return html;
     },
 
     gradient_stops: [
       {
         value: -1,
-        position: 0, /*between 0 and 1, or "auto" for linear based on value*/
-      }, {
+        label: "-1"
+      }, 
+      {
         value: 0,
-        position: 0.5,
-      }, {
-        value: 1,
-        position: 1
+        label: "0",
+      }, 
+      {
+        value:  1,
+        label: "1"
       }
     ]
   }
@@ -184,23 +216,169 @@ function cbpp_map(sel, _options) {
   }
 
   map.fillStates = function(duration) {
-    this.map_svg.selectAll("g.state").each(function(d) {
-      var fill = get_color(d.value, options);
-      d3.select(this).selectAll("path, rect").transition()
-        .duration(duration)
-        .attr("fill", fill);
-      var state = d.state;
-      if (!text_config.outside[state]) {
-        d3.select(this).selectAll("text")
-          .transition()
+    return new Promise((resolve)=> {
+      this.map_svg.selectAll("g.state").each(function(d) {
+        var fill = get_color(d.value, options);
+        d3.select(this).selectAll("path, rect").transition()
           .duration(duration)
-          .attr("fill", options.text_color(d, fill));
-      }
-
+          .attr("fill", fill);
+        var state = d.state;
+        if (!text_config.outside[state]) {
+          d3.select(this).selectAll("text")
+            .transition()
+            .duration(duration)
+            .attr("fill", options.text_color(d, fill));
+        }
+      });
+      setTimeout(duration + 50, resolve);
     });
   }
 
+  map.updateLegend = function(duration) {
+    return new Promise((resolve)=> {
+      setTimeout(resolve, duration + 50);
+      var new_legend = $(document.createElement("div"))
+        .addClass("legend-inner");
+      
+      function make_bin(label, color) {
+        var svg = "";
+        if (color) {
+          svg = `<div class='legend-box'>
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 20 20">
+              <rect stroke-width="0.5" stroke="#333333" fill="${color}" x="1" y="1" width="18" height="18" />
+            </svg>
+          </div>`;
+        }
+        var template = `<div class='legend-bin-outer'>
+          ${svg}
+          <div class='legend-label'>${label}</div>
+        </div>`; 
+        return template;  
+      }
 
+      function make_grad_bin(label, width, color, className) {
+        var svg = "";
+        if (color) {
+          svg = `<div class='legend-grad-box'>
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 20 20" preserveAspectRatio="none">
+              <rect stroke-width="0" fill="${color}" x="-1" y="-1" width="22" height="22" />
+            </svg>
+          </div>`;
+        } else {
+          width = 0;
+        }
+        var template = `<div class='legend-grad-bin-outer ${className}' style="width:${width}">
+          ${svg}
+          <div class='bin-gradient-label-outer'><div class='bin-gradient-label-inner'><span>${label}</span></div></div>
+        </div>`; 
+        return template;  
+
+      }
+
+      if (options.type === "grad") {
+        new_legend.addClass("grad-legend");
+        var grad = make_gradient(options.gradient_stops, options.grad_colors);
+        var custom_values = ``;
+        if (options.customValues) {
+          var custom_values = `<div class='custom_gradient_labels'>`;
+          options.customValues.forEach((customValue) => {
+            custom_values += make_bin(customValue.label, customValue.color);
+          });
+          custom_values += `</div>`;
+        }
+        new_legend.html(grad + custom_values);
+      } else if (options.type === "bins") {
+        var html = ``;
+        new_legend.addClass("bin-legend");
+        options.bin_colors.forEach((bin_color, i) => {
+          var label;
+          if (typeof(options.bin_labels)==="function") {
+            label = options.bin_labels(options.bins[i], options.bins[i+1]);
+          } else {
+            label = options.bin_labels[i];
+          }
+          html += make_bin(label, bin_color);
+        });
+        new_legend.html(html);
+      } else if (options.type === "grad_bins") {
+        var html = `<div class='bin-grad-legend-main'>`;
+        new_legend.addClass("bin-grad-legend");
+        options.bins.forEach((bin, i)=> {
+          var className = "grad-bin";
+          if (i===0) {
+            className += " first-bin";
+          } else if (i===(options.bins.length - 2)) {
+            className += " last-bin";
+          } else if (i===(options.bins.length - 1)) {
+            className += " fake-bin";
+          }
+          var label;
+          if (typeof(options.bin_grad_labels)==="function") {
+            label = options.bin_grad_labels(options.bins[i]);
+          } else {
+            label = options.bin_grad_labels[i];
+          }
+          var bin_color = null;
+          if (options.bin_colors[i]) {
+            bin_color = options.bin_colors[i];
+          }
+          var width = 100/(options.bins.length - 1) + "%";
+          html += make_grad_bin(label, width, bin_color, className);
+        });
+        html += "</div>";
+        var custom_values = "";
+        if (options.customValues) {
+          var custom_values = `<div class='custom_gradient_labels'>`;
+          options.customValues.forEach((customValue) => {
+            custom_values += make_bin(customValue.label, customValue.color);
+          });
+          custom_values += `</div>`;
+        }
+        new_legend.html(html + custom_values);
+      }
+
+      $(sel).find(".cbpp-map-legend").empty().append(new_legend);
+      
+
+      function make_gradient(stops, colors) {
+        var _sel = sel.replace("#", "");
+        var grad_id = _sel + "-gradient-def";
+        var stop_template = ``;
+        var label_template = ``;
+        var first_stop = stops[0].value;
+        var last_stop = stops[stops.length - 1].value;
+        stops.forEach((stop, i)=> {
+          var offset = ((stop.value - first_stop) / (last_stop - first_stop)*100) + "%";
+          stop_template += `<stop offset="${offset}" stop-color="${colors[i]}" />\n`;
+          label_template += `<div class='gradient-label-outer' style='left:${offset}'>
+            <div class='gradient-label-inner'>
+              <span>
+                ${stop.label}
+              </span>
+            </div>
+          </div>\n`;
+        });
+        var template = `<div class='legend-gradient-outer'>
+          <div class='legend-gradient'>
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 500 16">
+              <defs>
+                <linearGradient id="${grad_id}">
+                  ${stop_template}
+                </linearGradient>
+              </defs>
+              <rect stroke-width="0.5" stroke="#333333" fill="url(#${grad_id})" x="-1" y="1" width="502" height="14" />
+            </svg>
+            <div class='gradient-labels'>
+              ${label_template}
+            </div>
+          </div>
+        </div>`
+        return template;
+
+      }
+
+    });
+  };
 
 
   var outer_wrap = d3.select(sel).append("div")
@@ -214,10 +392,25 @@ function cbpp_map(sel, _options) {
     var start_data = _options.data;
     delete(_options.data);
     map.setOptions(_options);
+    var legend = $(document.createElement("div")).addClass("cbpp-map-legend");
+    if (options.legend_position==="above") {
+      $(map.map_svg.node()).before(legend);
+    } else if (options.legend_position==="below") {
+      $(map.map_svg.node()).after(legend);
+    } else if ($(options.legend_position.length)) {
+      $(options.legend_position).append(legend);
+    } else {
+      throw new Error("legend_position must be 'above', 'below', or valid CSS selector for an existing element");
+    }
+    var svg_style = $(document.createElement("style"));
+    svg_style.html(`g.state:hover rect, g.state:hover path {fill:` + options.hover_color + `;}
+      g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
+    $(map.map_svg.node()).append(svg_style);
     add_state_paths(map.map_svg, paths, options);
     map.setData(start_data);
     event_listeners(sel, options);
     map.fillStates(0);
+    map.updateLegend(0);
   })
   
   
@@ -231,11 +424,21 @@ function event_listeners(sel, options) {
   $(window).on("mousemove", function(e) {
     mousetracker.x = e.pageX;
     mousetracker.y = e.pageY;
-    if ($(e.target).hasClass(".popup-outer-wrap") || $(e.target).parents(".popup-outer-wrap").length) {
-      return;
-    }
-    if ($(sel).find(e.target).length===0) {
-      stateexit($(sel));
+    if (options.popup_movement==="sticky") {
+      if ($(e.target).hasClass(".popup-outer-wrap") || $(e.target).parents(".popup-outer-wrap").length) {
+        return;
+      }
+      if ($(sel).find(e.target).length===0) {
+        stateexit($(sel), options);
+      }
+    } else if (options.popup_movement==="smooth") {
+      if ($(e.target).is("g.state *") || $(e.target).is("g.state")) {
+        position_popup($(sel)); 
+      } else {
+        stateexit($(sel), options)
+      }
+    } else {
+      throw new Error("popup_movement must be 'smooth' or 'sticky'");
     }
   });
   $(sel).find(".popup-outer-wrap").on("mouseenter", function() {
@@ -263,7 +466,7 @@ function event_listeners(sel, options) {
             popup_exited_recently = false;
           }, 200);
           popup_exited_recently = true;
-          stateexit($(sel));
+          stateexit($(sel), options);
 
         }
       }
@@ -300,7 +503,13 @@ function add_state_paths(svg, paths, options) {
     })
     .enter()
     .append("g")
-    .attr("class", "state")
+    .attr("class",  function(d) {
+      if (text_config.outside[d.state]) {
+        return "state text-outside";
+      } else {
+        return "state text-inside";
+      }
+    })
     .on("mouseenter", function(e, d) {
       stateenter.call(this, e, d, $(svg.node().parentNode.parentNode), options);
     })
@@ -308,7 +517,9 @@ function add_state_paths(svg, paths, options) {
       if ($(e.relatedTarget).hasClass("popup-inner")) {
         return;
       }
-      stateexit($(svg.node().parentNode.parentNode))
+      if (options.popup_movement==="sticky") {
+        stateexit($(svg.node().parentNode.parentNode), options)
+      }
     })
     .on("click", function(e, d) {
       if (typeof(options.clickHandler)==="function") {
@@ -396,16 +607,16 @@ function add_state_paths(svg, paths, options) {
     })
   borders.raise();
   $(temp_svg).remove();
-
+  
 }
 
 function get_color(d, options) {
   if (options.type === "grad") {
     return get_grad_color(d, options);
-  } else if (options.type==="bins") {
+  } else if (options.type==="bins" || options.type==="grad_bins") {
     return get_bin_color(d, options);
   } else {
-    throw new Error("invalid map type: must be 'grad' or 'bins'");
+    throw new Error("Invalid map type: options.type must be 'grad', 'bins', or 'grad_bins.'");
   }
 }
 
@@ -433,10 +644,10 @@ function get_grad_color(d, options) {
       if (i===gradient_stops.length - 1) {
         return options.grad_colors[i];
       } else {
-        var low_stop = stop;
-        var high_stop = gradient_stops[i+1];
-        if (d >= low_stop.value && d < high_stop.value) {
-          color = interpolate_hex((d-low_stop.value)/(high_stop.value - low_stop.value), options.grad_colors[i], options.grad_colors[i+1]);
+        var low_stop = stop.value;
+        var high_stop = gradient_stops[i+1].value;
+        if (d >= low_stop && d < high_stop) {
+          color = interpolate_hex((d-low_stop)/(high_stop - low_stop), options.grad_colors[i], options.grad_colors[i+1]);
         }
       }
     });
@@ -450,7 +661,14 @@ function get_bin_color(d, options) {
   bins.sort((a, b)=> {
     return a - b;
   });
-  var color;
+  var color, useCustom;
+  options.customValues.forEach((customValue)=> {
+    if (d >= customValue.values[0] && d < customValue.values[1]) {
+      color = customValue.color;
+      useCustom = true;
+    }
+  });
+  if (useCustom) {return color;}
   color = options.not_in_range_color;
   bins.forEach((bin, i)=> {
     if (i === bins[bin.length - 1]) {return;}

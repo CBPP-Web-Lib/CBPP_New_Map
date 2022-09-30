@@ -2,9 +2,13 @@
     text, tspan {
         font-family:"Arial Narrow";
     }
-    g.state:hover {
+    g.state {
         text, path, rect {
             transition: fill 0.2s;
+        }
+    }
+    g.state:hover {
+        text, path, rect {
             cursor:pointer;
         }
         /*path, rect {
@@ -38,4 +42,99 @@
         padding:10px;
     }
     
+}
+
+.cbpp-map-legend {
+    .bin-grad-legend-main {
+        display:flex;
+        margin-bottom:30px;
+    }
+    .legend-grad-bin-outer:not(.last-bin, .fake-bin) {
+        border-right:1px solid rgba(0, 0, 0, 0.5);
+    }
+    .legend-grad-box {
+        margin:0;
+        display:inline-block;
+        height:20px;
+        width:100%;
+        position:relative;
+        & > svg {
+            position:absolute;
+            top:0;left:0;right:0;bottom:0;
+            width:100%;
+            height:100%;
+        }
+    }
+    .legend-inner {
+        width:80%;
+        margin-left:10%;
+        margin-right:10%;
+        position:relative;
+    }
+    .legend-bin-outer {
+        display:inline-block;
+        margin-right:30px;
+        vertical-align: middle;
+        line-height:36px;
+        & > * {
+            display:inline-block;
+            vertical-align: middle;
+        }
+        .legend-label {
+            position:relative;
+            top:-2px;
+        }
+    }
+    .legend-gradient-outer {
+        height:60px;
+    }
+    .gradient-labels {
+        height:3em;
+        position:absolute;
+        width:100%;
+        top:0px;
+        .gradient-label-outer {
+            width:0px;
+            overflow:visible;
+            position:absolute;
+            top:0px;
+            &:last-child {
+                .gradient-label-inner {
+                    left:-1px;
+                }
+            }
+        }
+        .gradient-label-inner {
+            display:inline-block;
+            position:relative;
+            top:2px;
+            height:30px;
+            border-left:1px solid rgba(0, 0, 0, 0.5);
+            & > span {
+                display:block;
+                position:relative;
+                right:50%;
+                top:1.5em;
+                white-space:nowrap;
+            }
+        }
+    }
+    .bin-gradient-label-outer {
+        width:0px;
+        position:absolute;
+        top:25px;
+        overflow:visible;
+        & > div {
+            position:relative;
+            display:inline-block;
+            & > span {
+                position:relative;
+                left:-50%;
+            }
+        }
+    }
+    .legend-box > svg {
+        width: 20px;
+        height:20px;
+    }
 }
