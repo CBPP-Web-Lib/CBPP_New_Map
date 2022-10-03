@@ -87,6 +87,19 @@
     }
     .legend-gradient-outer {
         height:60px;
+        .legend-gradient {
+            height:21px;
+            position:relative;
+            svg {
+                position:absolute;
+                top:0;
+                left:0;
+                right:0;
+                bottom:0;
+                height:100%;
+                width:100%;
+            }
+        }
     }
     .gradient-labels {
         height:3em;

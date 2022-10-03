@@ -171,6 +171,11 @@ function cbpp_map(sel, _options) {
 
     hover_text_color: "#333333",
 
+    click_handler: function(e, d) {
+      var {state} = d;
+      console.log("You clicked on " + state);
+    },
+
     text_color: default_text_color, /*arguments: data value, fill color*/
 
     popup_generator: function(state, d) {
@@ -360,7 +365,7 @@ function cbpp_map(sel, _options) {
         });
         var template = `<div class='legend-gradient-outer'>
           <div class='legend-gradient'>
-            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 500 16">
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 500 16" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="${grad_id}">
                   ${stop_template}
@@ -522,8 +527,8 @@ function add_state_paths(svg, paths, options) {
       }
     })
     .on("click", function(e, d) {
-      if (typeof(options.clickHandler)==="function") {
-        options.clickHandler(e, d);
+      if (typeof(options.click_handler)==="function") {
+        options.click_handler(e, d);
       }
       if (e.pointerType==="touch") {return;}
     })
