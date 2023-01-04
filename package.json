@@ -2,8 +2,9 @@
   "name": "cbpp_new_map",
   "version": "0.0.1",
   "description": "cbpp_new_map",
+  
+  "main": "cbpp_map.js",
   "scripts": {
-    "main": "cbpp_map.js",
     "postinstall": "node states.js && node topo.js"
   },
   "author": "Nick Kasprak",
