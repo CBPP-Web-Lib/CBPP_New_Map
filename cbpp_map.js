@@ -9,16 +9,19 @@ require("./cbpp_map.scss");
 const hex_rgb = require("hex-rgb");
 const rgb_hex = require("rgb-hex");
 
+var {getStateName, getStateCode, getStateNames, getStateCodes} = require("./state_names.js");
+
 module.exports = function(_$, _d3, _url_root) {
   d3 = _d3; $ = _$, url_root = _url_root;
   application.d3 = d3;
   application.$ = $;
   application.url_root = _url_root;
   application.text_config = text_config;
+  cbpp_map.utilities = {getStateName, getStateCode, getStateNames, getStateCodes}
   return cbpp_map;
 }
 
-var {getStateName, getStateCode, getStateNames, getStateCodes} = require("./state_names.js");
+
 
 function getPaths() {
   return new Promise((resolve)=> {
@@ -148,6 +151,8 @@ function cbpp_map(sel, _options) {
     bin_labels: function(low, high) { /*array or function that accepts lower value and higher value*/
       return low + " &mdash; " + high;
     },
+
+    brightness_threshold: 0.5,
 
     customValues: [
       {
@@ -402,10 +407,12 @@ function cbpp_map(sel, _options) {
       $(map.map_svg.node()).before(legend);
     } else if (options.legend_position==="below") {
       $(map.map_svg.node()).after(legend);
+    } else if (options.legend_position==="none") {
+      /*do nothing*/
     } else if ($(options.legend_position.length)) {
       $(options.legend_position).append(legend);
     } else {
-      throw new Error("legend_position must be 'above', 'below', or valid CSS selector for an existing element");
+      throw new Error("legend_position must be 'above', 'below', 'none', or valid CSS selector for an existing element");
     }
     var svg_style = $(document.createElement("style"));
     svg_style.html(`g.state:hover rect, g.state:hover path {fill:` + options.hover_color + `;}
@@ -417,6 +424,15 @@ function cbpp_map(sel, _options) {
     map.fillStates(0);
     map.updateLegend(0);
   })
+
+  function default_text_color(d, fill) {
+    var brightness = getBrightness(fill);
+    if (brightness > options.brightness_threshold) {
+      return "#000";
+    } else {
+      return "#fff";
+    }
+  }
   
   
   return map;
@@ -699,11 +715,3 @@ function interpolate_hex(d, c1, c2) {
   return rhex;
 } 
 
-function default_text_color(d, fill) {
-  var brightness = getBrightness(fill);
-  if (brightness > 0.5) {
-    return "#000";
-  } else {
-    return "#fff";
-  }
-}
