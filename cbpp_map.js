@@ -22,7 +22,7 @@ var {getStateName, getStateCode, getStateNames, getStateCodes} = require("./stat
 
 function getPaths() {
   return new Promise((resolve)=> {
-    $.get(application.url_root + "./geography/states_50m_topo.json", function(d) {
+    $.get(application.url_root + "/geography/states_50m_topo.json", function(d) {
       application.states_50m = feature(d, d.objects.states);
       var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
       var pr_proj = d3.geoMercator().scale(1600).translate([2790, 1090]);
