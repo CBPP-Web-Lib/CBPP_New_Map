@@ -31,7 +31,8 @@ function getPaths() {
       var pr_proj = d3.geoMercator().scale(1600).translate([2790, 1090]);
       var pr_path = d3.geoPath(pr_proj);
       var path = d3.geoPath(projection);
-      resolve(generatePaths(path, pr_path, application.states_50m.features));
+      application.state_paths = generatePaths(path, pr_path, application.states_50m.features)
+      resolve(application.state_paths);
     });
   });
 }
@@ -117,6 +118,10 @@ function cbpp_map(sel, _options) {
 
   var map = {};
   var data;
+
+  if (typeof(_options)==="undefined") {
+    _options = {};
+  }
 
   map.setData = function(_data) {
     data = {};
@@ -398,7 +403,19 @@ function cbpp_map(sel, _options) {
     .attr("version", "1.1")
     .attr("xmlns", "http://www.w3.org/2000/svg")
     .attr('xmlns:xlink', "http://www.w3.org/1999/xlink");
-  getPaths().then((paths)=> {
+  getPaths().then(function() {
+    if (map.draw_when_paths_loaded) {
+      initial_draw(application.state_paths);
+    }
+  });
+  map.draw = function() {
+    if (application.state_paths) {
+      initial_draw(application.state_paths);
+    } else {
+      map.draw_when_paths_loaded = true;
+    }
+  };
+  function initial_draw(paths) {
     var start_data = _options.data;
     delete(_options.data);
     map.setOptions(_options);
@@ -419,11 +436,21 @@ function cbpp_map(sel, _options) {
       g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
     $(map.map_svg.node()).append(svg_style);
     add_state_paths(map.map_svg, paths, options);
-    map.setData(start_data);
+    if (start_data && typeof(map_data.getData()==="undefined")) {
+      map.setData(start_data);
+    } else {
+      map.setData(map.getData());
+    }
     event_listeners(sel, options);
-    map.fillStates(0);
-    map.updateLegend(0);
-  })
+    Promise.all([
+      map.fillStates(0),
+      map.updateLegend(0)
+    ]).then(()=>{
+      if (typeof(options.ready)==="function") {
+        options.ready();
+      }
+    });
+  }
 
   function default_text_color(d, fill) {
     var brightness = getBrightness(fill);
