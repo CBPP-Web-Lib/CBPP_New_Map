@@ -52,6 +52,9 @@ function generatePaths(pathgen, pr_pathgen, features) {
 
 
 var stateenter = function(e, d, global_el, options) {
+  if (options.no_popup===true) {
+    return;
+  }
   if (options.popup_movement==="sticky") {
     if (popup_exited_recently) {
       return;
@@ -172,6 +175,8 @@ function cbpp_map(sel, _options) {
     bin_colors: ["#a0917d", "#0c61a4"], /*shoudl be one less than the number of bin boundaries*/
 
     not_in_range_color: "#aaaaaa",
+
+    label_size: 18,
 
     legend_position: "above", /*can be 'above', 'below', or CSS selector for external element*/
 
@@ -403,16 +408,14 @@ function cbpp_map(sel, _options) {
     .attr("version", "1.1")
     .attr("xmlns", "http://www.w3.org/2000/svg")
     .attr('xmlns:xlink', "http://www.w3.org/1999/xlink");
-  getPaths().then(function() {
-    if (map.draw_when_paths_loaded) {
-      initial_draw(application.state_paths);
-    }
-  });
+  var pathGetter = getPaths();
   map.draw = function() {
     if (application.state_paths) {
-      initial_draw(application.state_paths);
+      return initial_draw(application.state_paths);
     } else {
-      map.draw_when_paths_loaded = true;
+      return pathGetter.then(function() {
+        initial_draw(application.state_paths);
+      })
     }
   };
   function initial_draw(paths) {
@@ -431,10 +434,12 @@ function cbpp_map(sel, _options) {
     } else {
       throw new Error("legend_position must be 'above', 'below', 'none', or valid CSS selector for an existing element");
     }
-    var svg_style = $(document.createElement("style"));
-    svg_style.html(`g.state:hover rect, g.state:hover path {fill:` + options.hover_color + `;}
-      g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
-    $(map.map_svg.node()).append(svg_style);
+    if (options.no_hover!==true) {  
+      var svg_style = $(document.createElement("style"));
+      svg_style.html(`g.state:hover rect, g.state:hover path {fill:` + options.hover_color + `;}
+        g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
+      $(map.map_svg.node()).append(svg_style);
+    }
     add_state_paths(map.map_svg, paths, options);
     if (start_data && typeof(map_data.getData()==="undefined")) {
       map.setData(start_data);
@@ -442,7 +447,7 @@ function cbpp_map(sel, _options) {
       map.setData(map.getData());
     }
     event_listeners(sel, options);
-    Promise.all([
+    return Promise.all([
       map.fillStates(0),
       map.updateLegend(0)
     ]).then(()=>{
@@ -533,7 +538,7 @@ function add_state_paths(svg, paths, options) {
   /*Object.keys(application.text_config.noOutline).forEach((territory)=> {
     data.push([territory, null])
   });*/
-  svg.attr("viewBox", "0 0 995 610")
+  svg.attr("viewBox", "0 0 1010 610")
     .attr("class", "cbpp-map");
 
   /*text placement relies on svg being displayed
@@ -586,7 +591,7 @@ function add_state_paths(svg, paths, options) {
       var label = d3.select(this).append("text")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .attr("font-size","18pt")
+        .attr("font-size",options.label_size + "pt")
         .attr("opacity",0.8)
         .text(state)
        // .attr("fill", application.text_colors.dark);
