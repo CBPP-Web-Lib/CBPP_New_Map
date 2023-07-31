@@ -250,7 +250,7 @@ function cbpp_map(sel, _options) {
             .attr("fill", options.text_color(d, fill));
         }
       });
-      setTimeout(duration + 50, resolve);
+      setTimeout(resolve, duration + 50, );
     });
   }
 
