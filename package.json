@@ -4,9 +4,6 @@
   "description": "cbpp_new_map",
   
   "main": "cbpp_map.js",
-  "scripts": {
-    "postinstall": "node states.js && node topo.js"
-  },
   "author": "Nick Kasprak",
   "license": "MIT",
   "dependencies": {
