@@ -65,7 +65,7 @@ var stateenter = function(e, d, global_el, options) {
       var pwrap = global_el.find(".popup-outer-wrap");
       var popup_html = popup_template(code, options, d);
       pwrap.empty().html(popup_html);
-      position_popup(global_el);
+      position_popup(global_el, options);
     }, 100);
   } else {
     var code = d.state;
@@ -75,7 +75,7 @@ var stateenter = function(e, d, global_el, options) {
   }
 }
 
-var position_popup = function(global_el) { 
+var position_popup = function(global_el, options) { 
   var pwrap = global_el.find(".popup-outer-wrap");
   var mwrap = global_el.find(".map-outer-wrap");
   var offset = mwrap.offset();
@@ -92,10 +92,16 @@ var position_popup = function(global_el) {
   ];
   pwrap.css("left", pos[0]).css("top", pos[1]);
   var popup_width = pwrap.find(".popup-inner").width();
-  var height = pwrap.find(".popup-inner").height();
+  var popup_height = pwrap.find(".popup-inner").height();
+  if (typeof(options.custom_positioner)==="function") {
+    options.custom_positioner({
+      pwrap, px, py, width, height, popup_width, popup_height
+    })
+    return;
+  }
   pwrap.find(".popup-inner").css("right", px * popup_width + "px");
   if (py > 0.5) {
-    pwrap.find(".popup-inner").css("top", (-height - 40) + "px");
+    pwrap.find(".popup-inner").css("top", (-popup_height - 40) + "px");
   } else {
     pwrap.find(".popup-inner").css("top", "30px");
   }
@@ -489,7 +495,7 @@ function event_listeners(sel, options) {
       }
     } else if (options.popup_movement==="smooth") {
       if ($(e.target).is("g.state *") || $(e.target).is("g.state")) {
-        position_popup($(sel)); 
+        position_popup($(sel), options); 
       } else {
         stateexit($(sel), options)
       }
@@ -585,6 +591,12 @@ function add_state_paths(svg, paths, options) {
     })
     .each(function(d) {
       var state = d.state;
+      if (state === "PR" && options.hidePR === true) {
+        return;
+      }
+      if (state === "DC" && options.hideDC === true) {
+        return;
+      }
       var path = d3.select(this).append("path")
         .attr("d", d.path)
         .attr("name", state)
