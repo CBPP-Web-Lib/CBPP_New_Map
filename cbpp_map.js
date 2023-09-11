@@ -441,7 +441,7 @@ function cbpp_map(sel, _options) {
       $(map.map_svg.node()).append(svg_style);
     }
     add_state_paths(map.map_svg, paths, options);
-    if (start_data && typeof(map_data.getData()==="undefined")) {
+    if (start_data && typeof(map.getData()==="undefined")) {
       map.setData(start_data);
     } else {
       map.setData(map.getData());
