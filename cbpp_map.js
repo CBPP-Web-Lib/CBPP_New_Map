@@ -103,6 +103,9 @@ var position_popup = function(global_el) {
 
 var popup_template = function(code, options, d) {
   var html = options.popup_generator(code, d.value);
+  if (!html) {
+    return '';
+  }
   return "<div class='popup-inner'>" + html + "</div>";
 }
 
