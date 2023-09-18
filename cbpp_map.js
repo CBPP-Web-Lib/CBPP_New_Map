@@ -246,6 +246,9 @@ function cbpp_map(sel, _options) {
 
   map.fillStates = function(duration) {
     return new Promise((resolve)=> {
+      if (typeof(duration)==="undefined") {
+        duration = 0;
+      }
       this.map_svg.selectAll("g.state").each(function(d) {
         var fill = get_color(d.value, options);
         d3.select(this).selectAll("path, rect").transition()
@@ -366,7 +369,7 @@ function cbpp_map(sel, _options) {
         new_legend.html(html + custom_values);
       }
 
-      $(sel).find(".cbpp-map-legend").empty().append(new_legend);
+      map.legend.empty().append(new_legend);
       
 
       function make_gradient(stops, colors) {
@@ -418,28 +421,29 @@ function cbpp_map(sel, _options) {
     .attr("xmlns", "http://www.w3.org/2000/svg")
     .attr('xmlns:xlink', "http://www.w3.org/1999/xlink");
   var pathGetter = getPaths();
-  map.draw = function() {
+  map.draw = function(duration) {
     if (application.state_paths) {
-      return initial_draw(application.state_paths);
+      return initial_draw(application.state_paths, duration);
     } else {
       return pathGetter.then(function() {
-        initial_draw(application.state_paths);
+        initial_draw(application.state_paths, duration);
       })
     }
   };
-  function initial_draw(paths) {
+  function initial_draw(paths, duration) {
     var start_data = _options.data;
     delete(_options.data);
     map.setOptions(_options);
     var legend = $(document.createElement("div")).addClass("cbpp-map-legend");
+    map.legend = legend
     if (options.legend_position==="above") {
       $(map.map_svg.node()).before(legend);
     } else if (options.legend_position==="below") {
       $(map.map_svg.node()).after(legend);
     } else if (options.legend_position==="none") {
       /*do nothing*/
-    } else if ($(options.legend_position.length)) {
-      $(options.legend_position).append(legend);
+    } else if ($(options.legend_position).length) {
+      $(options.legend_position).empty().append(legend);
     } else {
       throw new Error("legend_position must be 'above', 'below', 'none', or valid CSS selector for an existing element");
     }
@@ -457,7 +461,7 @@ function cbpp_map(sel, _options) {
     }
     event_listeners(sel, options);
     return Promise.all([
-      map.fillStates(0),
+      map.fillStates(duration),
       map.updateLegend(0)
     ]).then(()=>{
       if (typeof(options.ready)==="function") {
