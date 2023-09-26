@@ -4,6 +4,7 @@ var getBrightness = require("getbrightness").default;
 var {feature} = topojson;
 var d3, $, url_root;
 var application = {};
+var geo_paths = require("./dist/states_50m_topo.json");
 require("./cbpp_map.scss");
 
 const hex_rgb = require("hex-rgb");
@@ -25,15 +26,14 @@ module.exports = function(_$, _d3, _url_root) {
 
 function getPaths() {
   return new Promise((resolve)=> {
-    $.get(application.url_root + "/geography/states_50m_topo.json", function(d) {
-      application.states_50m = feature(d, d.objects.states);
-      var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
-      var pr_proj = d3.geoMercator().scale(1600).translate([2790, 1090]);
-      var pr_path = d3.geoPath(pr_proj);
-      var path = d3.geoPath(projection);
-      application.state_paths = generatePaths(path, pr_path, application.states_50m.features)
-      resolve(application.state_paths);
-    });
+    var d = geo_paths;
+    application.states_50m = feature(d, d.objects.states);
+    var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
+    var pr_proj = d3.geoMercator().scale(1600).translate([2790, 1090]);
+    var pr_path = d3.geoPath(pr_proj);
+    var path = d3.geoPath(projection);
+    application.state_paths = generatePaths(path, pr_path, application.states_50m.features)
+    resolve(application.state_paths);
   });
 }
 
