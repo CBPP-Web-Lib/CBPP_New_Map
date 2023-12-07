@@ -72,6 +72,11 @@ var states = object_flip(names);
 
 module.exports = (function() {
   return {
+    addStates: function(obj) {
+      Object.keys(obj).forEach((code) => {
+        names[code] = obj[code]
+      })
+    },
     getStateName: function(code) {
       return names[code][0];
     },

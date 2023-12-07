@@ -10,7 +10,24 @@ require("./cbpp_map.scss");
 const hex_rgb = require("hex-rgb");
 const rgb_hex = require("rgb-hex");
 
-var {getStateName, getStateCode, getStateNames, getStateCodes} = require("./state_names.js");
+var state_name_functions = require("./state_names.js");
+
+var {getStateName, getStateCode, getStateNames, getStateCodes } = state_name_functions;
+
+var addStateCodes = state_name_functions.addStates;
+
+function addStatePaths(states) {
+  Object.keys(states).forEach((code) => {
+    geo_paths.objects.states.geometries.push({
+      type:"Point",coordinates:[0,0],properties:{name:code}
+    })
+  })
+}
+
+function addStates(states) {
+  addStateCodes(states);
+  addStatePaths(states);
+}
 
 module.exports = function(_$, _d3, _url_root) {
   d3 = _d3; $ = _$, url_root = _url_root;
@@ -18,7 +35,11 @@ module.exports = function(_$, _d3, _url_root) {
   application.$ = $;
   application.url_root = _url_root;
   application.text_config = text_config;
-  cbpp_map.utilities = {getStateName, getStateCode, getStateNames, getStateCodes}
+
+  cbpp_map.utilities = {getStateName, getStateCode, getStateNames, getStateCodes, addStates}
+  cbpp_map.addTextConfig = function(new_config) {
+    $.extend(true, application.text_config, new_config);
+  }
   return cbpp_map;
 }
 
