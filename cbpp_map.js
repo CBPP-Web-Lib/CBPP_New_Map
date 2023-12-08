@@ -628,12 +628,18 @@ function add_state_paths(svg, paths, options) {
         .attr("fill", "#fff")
         .attr("stroke", "#000")
         .attr("stroke-width", 0);
+      var actual_text = state;
+      if (text_config.full_names) {
+        if (text_config.full_names[state]) {
+          actual_text = text_config.full_names[state];
+        }
+      }
       var label = d3.select(this).append("text")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
         .attr("font-size",options.label_size + "pt")
         .attr("opacity",0.8)
-        .text(state)
+        .text(actual_text)
        // .attr("fill", application.text_colors.dark);
       /*if (application.text_config.useFullName[state]) {
         label.style("font-size","13pt");
