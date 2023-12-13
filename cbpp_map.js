@@ -5,6 +5,7 @@ var {feature} = topojson;
 var d3, $, url_root;
 var application = {};
 var geo_paths = require("./dist/states_50m_topo.json");
+var uuid = require("uuid");
 require("./cbpp_map.scss");
 
 const hex_rgb = require("hex-rgb");
@@ -150,12 +151,12 @@ var stateexit = function (global_el, options) {
 function cbpp_map(sel, _options) {
 
   var map = {};
+  map.uuid = uuid.v4();
   var data;
 
   if (typeof(_options)==="undefined") {
     _options = {};
   }
-
   map.setData = function(_data) {
     data = {};
     $.extend(true, data, _data);
@@ -440,7 +441,8 @@ function cbpp_map(sel, _options) {
   map.map_svg = outer_wrap.append("svg")
     .attr("version", "1.1")
     .attr("xmlns", "http://www.w3.org/2000/svg")
-    .attr('xmlns:xlink', "http://www.w3.org/1999/xlink");
+    .attr('xmlns:xlink', "http://www.w3.org/1999/xlink")
+    .attr("data-uuid", map.uuid)
   var pathGetter = getPaths();
   map.draw = function(duration) {
     if (application.state_paths) {
@@ -470,8 +472,9 @@ function cbpp_map(sel, _options) {
     }
     if (options.no_hover!==true) {  
       var svg_style = $(document.createElement("style"));
-      svg_style.html(`g.state:hover rect, g.state:hover path {fill:` + options.hover_color + `;}
-        g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
+      var scoper = "svg.cbpp-map[data-uuid='" + map.uuid + "'] ";
+      svg_style.html(scoper + `g.state:hover rect, ` + scoper + `g.state:hover path {fill:` + options.hover_color + `;}
+        ` + scoper + `g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
       $(map.map_svg.node()).append(svg_style);
     }
     add_state_paths(map.map_svg, paths, options);

@@ -2,7 +2,6 @@
   "name": "cbpp_new_map",
   "version": "0.0.1",
   "description": "cbpp_new_map",
-  
   "main": "cbpp_map.js",
   "author": "Nick Kasprak",
   "license": "MIT",
@@ -10,12 +9,13 @@
     "cbpp_colorgen": "git+https://git@github.com/CBPP-Web-Lib/CBPP_Colorgen.git",
     "cbpp_geojson_from_url": "git+https://git@github.com/CBPP-Web-Lib/cbpp_geojson_from_url.git",
     "getbrightness": "^1.1.0",
-    "topojson": "^3.0.2"
+    "topojson": "^3.0.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "css-loader": "^4.2.1",
     "sass": "^1.26.10",
     "sass-loader": "^9.0.3",
-    "style-loader": "^1.2.1",
-    "css-loader": "^4.2.1"
+    "style-loader": "^1.2.1"
   }
 }
