@@ -164,7 +164,8 @@
   "DC":true,
   "VT":true,
   "NH":true,
-  "HI":true
+  "HI":true,
+  "PR":true
  },
  "lines": {
   "VT": [
