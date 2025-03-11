@@ -7,7 +7,7 @@
             transition: fill 0.2s;
         }
     }
-    g.state:hover {
+    g.state.hoverable:hover {
         text, path, rect {
             cursor:pointer;
         }

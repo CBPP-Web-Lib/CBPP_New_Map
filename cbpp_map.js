@@ -207,6 +207,8 @@ function cbpp_map(sel, _options) {
 
     not_in_range_color: "#aaaaaa",
 
+    no_hover_states: [],
+
     label_size: 18,
 
     legend_position: "above", /*can be 'above', 'below', or CSS selector for external element*/
@@ -473,8 +475,8 @@ function cbpp_map(sel, _options) {
     if (options.no_hover!==true) {  
       var svg_style = $(document.createElement("style"));
       var scoper = "svg.cbpp-map[data-uuid='" + map.uuid + "'] ";
-      svg_style.html(scoper + `g.state:hover rect, ` + scoper + `g.state:hover path {fill:` + options.hover_color + `;}
-        ` + scoper + `g.state.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
+      svg_style.html(scoper + `g.state.hoverable:hover rect, ` + scoper + `g.state.hoverable:hover path {fill:` + options.hover_color + `;}
+        ` + scoper + `g.state.hoverable.text-inside:hover text {fill:` + options.hover_text_color + `;}`);
       $(map.map_svg.node()).append(svg_style);
     }
     add_state_paths(map.map_svg, paths, options);
@@ -594,11 +596,16 @@ function add_state_paths(svg, paths, options) {
     .enter()
     .append("g")
     .attr("class",  function(d) {
-      if (text_config.outside[d.state]) {
-        return "state text-outside";
-      } else {
-        return "state text-inside";
+      var classes = [];
+      if (options.no_hover_states.indexOf(d.state)===-1) {
+        classes.push("hoverable");
       }
+      if (text_config.outside[d.state]) {
+        classes = classes.concat(["state","text-outside"]);
+      } else {
+        classes = classes.concat(["state","text-inside"]);
+      }
+      return classes.join(" ");
     })
     .on("mouseenter", function(e, d) {
       stateenter.call(this, e, d, $(svg.node().parentNode.parentNode), options);
