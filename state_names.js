@@ -10,7 +10,7 @@ var names = {
   "DC": ["District of Columbia"],
   "FL": ["Florida"],
   "GA": ["Georgia"],
-  "HI": ["Hawaiʻi", "Hawaii"],
+  "HI": ["Hawai‘i", "Hawaiʻi", "Hawaii"],
   "ID": ["Idaho"],
   "IL": ["Illinois"],
   "IN": ["Indiana"],
